@@ -1,0 +1,41 @@
+---
+- hosts: all
+  become: yes
+  tasks:
+  - name: Update and upgrade packages
+    apt:
+      upgrade: yes
+      update_cache: yes
+      cache_valid_time: 86400
+  - name: Disable root login
+    lineinfile:
+      dest: /etc/ssh/sshd_config
+      regexp: '^#*PermitRootLogin'
+      line: "PermitRootLogin no"
+      state: present
+      backup: yes
+    become: yes
+    notify:
+      - Restart ssh
+  - name: Disable password login
+    lineinfile:
+      dest: /etc/ssh/sshd_config
+      regexp: '^PasswordAuthentication'
+      line: "PasswordAuthentication no"
+      state: present
+      backup: yes
+    become: yes
+    notify:
+      - Restart ssh
+  - name: Check if needs reboot
+    stat:
+      path: /var/run/reboot-required
+    register: reboot
+  - name: Rebooting
+    ansible.builtin.reboot:
+      reboot_timeout: 3600
+    when: reboot.stat.exists
+
+  handlers:
+  - name: Restart ssh
+    service: name=sshd state=restarted
